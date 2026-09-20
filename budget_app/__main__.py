@@ -1,11 +1,12 @@
 import os
 import json
 import argparse
-from dataclasses import dataclass, field
+from datetime import datetime
+from dataclasses import dataclass, field, asdict
 from typing import Generator
 
 # ==========================================
-# [기존 코드 재사용] 06번 저장소 초기화 함수
+# [기존 코드 재사용] 06번 저장소 초기화
 # ==========================================
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary"]
 DEFAULT_TRANSACTIONS = [
@@ -39,7 +40,7 @@ def init_storage(data_dir: str = "./data"):
 
 
 # ==========================================
-# [기존 코드 재사용] 04/09번 모델 & 저장소
+# [기존 코드 재사용] 04/11번 Transaction 모델 & 정렬 비교
 # ==========================================
 @dataclass
 class Transaction:
@@ -51,11 +52,27 @@ class Transaction:
     memo: str = ""
     tags: list[str] = field(default_factory=list)
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(**data)
 
 
+def is_newer(tx_a: dict, tx_b: dict) -> bool:
+    """tx_a가 tx_b보다 더 최신(앞쪽)이면 True 반환"""
+    if tx_a["date"] > tx_b["date"]:
+        return True
+    elif tx_a["date"] < tx_b["date"]:
+        return False
+    else:
+        return tx_a["id"] < tx_b["id"]
+
+
+# ==========================================
+# [기존 코드 재사용] 09/11번 TransactionRepository
+# ==========================================
 class TransactionRepository:
     def __init__(self, file_path: str = "data/transactions.jsonl"):
         self.file_path = file_path
@@ -71,29 +88,52 @@ class TransactionRepository:
                 obj = json.loads(line)
                 yield Transaction.from_dict(obj)
 
+    def insert_sorted(self, new_tx: Transaction) -> None:
+        if not os.path.exists(self.file_path):
+            with open(self.file_path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(new_tx.to_dict(), ensure_ascii=False) + "\n")
+            return
+
+        temp_file = self.file_path + ".tmp"
+        inserted = False
+        new_dict = new_tx.to_dict()
+
+        with open(self.file_path, "r", encoding="utf-8") as src, \
+             open(temp_file, "w", encoding="utf-8") as dst:
+            for line in src:
+                line = line.strip()
+                if not line:
+                    continue
+                existing_dict = json.loads(line)
+
+                if not inserted and is_newer(new_dict, existing_dict):
+                    dst.write(json.dumps(new_dict, ensure_ascii=False) + "\n")
+                    inserted = True
+
+                dst.write(json.dumps(existing_dict, ensure_ascii=False) + "\n")
+
+            if not inserted:
+                dst.write(json.dumps(new_dict, ensure_ascii=False) + "\n")
+                inserted = True
+
+        os.replace(temp_file, self.file_path)
+
 
 # ==========================================
-# [13번 실습] python -m budget_app 진입점과 --data-dir 연동
+# [14번 실습] 대화형 add 구현
 # ==========================================
 def main():
-    # -------------------------------------------------------------
-    # [스텝 1] 메인 파서 생성
-    # TODO: prog="python -m budget_app"을 추가하여,
-    #       도움말(usage)에 스크립트 파일명이 아니라 'python -m budget_app'이 뜨게 만드세요.
-    # -------------------------------------------------------------
     parser = argparse.ArgumentParser(
-        prog="python -m budget_app", # usage: __main__.py [-h] [--data-dir DATA_DIR] <command> ... -> usage: python -m budget_app [-h] [--data-dir DATA_DIR] <command> ...
+        prog="python -m budget_app",
         description="[나만의 가계부 CLI]"
     )
 
-    # 공통 옵션 (--data-dir)
     parser.add_argument(
         "--data-dir",
         default="./data",
         help="데이터 저장 디렉터리 지정 (기본값: ./data)"
     )
 
-    # 하위 명령어 분류기
     subparsers = parser.add_subparsers(
         dest="command",
         required=True,
@@ -101,50 +141,54 @@ def main():
         metavar="<command>"
     )
 
-    # 하위 명령어 등록 (list, add)
     list_parser = subparsers.add_parser("list", help="거래 목록 조회")
     list_parser.add_argument("--limit", type=int, default=5, help="출력 건수 (기본값: 5)")
 
     add_parser = subparsers.add_parser("add", help="거래 추가")
 
-    # 터미널 입력 해석
     args = parser.parse_args()
 
-    # -------------------------------------------------------------
-    # [스텝 2] --data-dir 연동 및 저장소 초기화
-    # TODO: 사용자가 넘겨준 args.data_dir 경로를 init_storage()에 전달하여
-    #       해당 디렉터리가 없으면 자동 생성하고 3개 파일(기본 데이터)을 준비하세요.
-    # -------------------------------------------------------------
-    # init_storage(...)
+    # 저장소 초기화 및 연결
     init_storage(data_dir=args.data_dir)
-
-    # -------------------------------------------------------------
-    # [스텝 3] TransactionRepository 생성
-    # TODO: args.data_dir 내부의 "transactions.jsonl" 경로를 만들어
-    #       TransactionRepository에 넘겨주세요.
-    # -------------------------------------------------------------
-    # tx_file = os.path.join(..., "transactions.jsonl")
-    # repo = TransactionRepository(file_path=tx_file)
     path_tx_file = os.path.join(args.data_dir, "transactions.jsonl")
     repo = TransactionRepository(file_path=path_tx_file)
 
-    # -------------------------------------------------------------
-    # [스텝 4] 명령어 분기 실행
-    # -------------------------------------------------------------
-    # if args.command == "list":
-    #     for i, tx in enumerate(repo.get_all(), 1):
-    #         print(f"[{tx.date}] {tx.category} : {tx.amount}원 ({tx.memo})")
-    #         if i == args.limit:
-    #             break
-    # elif args.command == "add":
-    #     print("add 명령어가 호출되었습니다!")
     if args.command == "list":
         for i, tx in enumerate(repo.get_all(), 1):
             print(f"[{tx.date}] {tx.category} : {tx.amount}원 ({tx.memo})")
             if i == args.limit:
                 break
+
     elif args.command == "add":
-        print("add 명령어가 호출되었습니다!")
+        # -------------------------------------------------------------
+        # [TODO 14-1] 등록된 카테고리 목록 읽어오기
+        # - 대상 파일: os.path.join(args.data_dir, "categories.jsonl")
+        # - 파일 각 줄의 json에서 "name" 값을 읽어 유효한 카테고리 집합(또는 리스트)을 만듭니다.
+        # -------------------------------------------------------------
+
+        # -------------------------------------------------------------
+        # [TODO 14-2] 새 거래 ID 생성하기 (TX-000001 형식)
+        # - 힌트: repo.get_all()을 순회하면서 가장 큰 숫자 번호를 찾고, 그 번호 + 1로 새 ID를 생성합니다.
+        # - 예: 가장 큰 번호가 3이면 f"TX-{4:06d}" -> "TX-000004"
+        # -------------------------------------------------------------
+
+        # -------------------------------------------------------------
+        # [TODO 14-3] 대화형으로 거래 정보 입력받기 (input) 및 검증
+        # - 날짜(date): datetime.strptime(..., "%Y-%m-%d") 활용 (형식 안 맞으면 안내 후 재입력 또는 오류)
+        # - 타입(type): "income" 또는 "expense"
+        # - 카테고리(category): TODO 14-1의 등록된 카테고리 목록에 있는지 확인
+        # - 금액(amount): int 변환 및 양수(> 0) 확인
+        # - 메모(memo): input(선택)
+        # - 태그(tags): input(선택, 쉼표 구분)
+        # -------------------------------------------------------------
+
+        # -------------------------------------------------------------
+        # [TODO 14-4] Transaction 객체 생성 및 정렬 저장
+        # - repo.insert_sorted(new_tx) 호출
+        # - 성공 안내 메시지와 함께 발급된 ID 출력
+        # -------------------------------------------------------------
+        pass
+
 
 if __name__ == "__main__":
     main()
