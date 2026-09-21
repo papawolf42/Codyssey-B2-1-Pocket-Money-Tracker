@@ -23,6 +23,15 @@ class BudgetService:
             raise ValueError(f"등록되지 않은 카테고리입니다: '{clean}'. (등록된 카테고리: {cats})")
         return clean
 
+    def add_category(self, name: str) -> str:
+        clean = name.strip() if name else ""
+        if not clean:
+            raise ValueError("카테고리 이름은 공백일 수 없습니다.")
+        if self.cat_repo.is_registered(clean):
+            raise ValueError(f"이미 등록된 카테고리입니다: '{clean}'")
+        self.cat_repo.add(clean)
+        return clean
+
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:

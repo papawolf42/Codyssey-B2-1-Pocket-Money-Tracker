@@ -59,6 +59,12 @@ def create_parser() -> argparse.ArgumentParser:
     update_parser.add_argument("--memo", help="새 메모")
     update_parser.add_argument("--tags", help="새 태그 (쉼표로 구분)")
 
+    # 8. category
+    cat_parser = subparsers.add_parser("category", help="카테고리 관리")
+    cat_sub = cat_parser.add_subparsers(dest="category_cmd", required=True, title="카테고리 명령어", metavar="<command>")
+    cat_add = cat_sub.add_parser("add", help="새 카테고리 추가")
+    cat_add.add_argument("name", help="추가할 카테고리 이름")
+
     return parser
 
 
@@ -212,6 +218,13 @@ def handle_update(service: BudgetService, args):
 
 
 @handle_errors
+def handle_category(service: BudgetService, args):
+    if args.category_cmd == "add":
+        cat = service.add_category(args.name)
+        print(f"[추가 완료] 카테고리 '{cat}'가 성공적으로 등록되었습니다.")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -244,6 +257,8 @@ def main():
         handle_delete(service, args)
     elif args.command == "update":
         handle_update(service, args)
+    elif args.command == "category":
+        handle_category(service, args)
 
 
 if __name__ == "__main__":

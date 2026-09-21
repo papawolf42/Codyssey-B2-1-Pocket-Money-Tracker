@@ -201,6 +201,11 @@ class CategoryRepository:
                 return True
         return False
 
+    def add(self, name: str) -> None:
+        categories = self.get_all()
+        categories.append(name.strip())
+        write_jsonl(self.file_path, [{"name": c} for c in categories])
+
 
 class BudgetRepository:
     def __init__(self, file_path: str = "./data/budgets.jsonl"):
