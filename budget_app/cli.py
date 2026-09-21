@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+from .error_handlers import handle_errors
 from .storage import init_storage, TransactionRepository, CategoryRepository
 from .services import BudgetService
 
@@ -28,6 +29,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
+@handle_errors
 def handle_list(service: BudgetService, args):
     txs = service.list_transactions(limit=args.limit)
     if not txs:
@@ -41,6 +43,7 @@ def handle_list(service: BudgetService, args):
         print(f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}")
 
 
+@handle_errors
 def handle_add(service: BudgetService):
     date = input("날짜(YYYY-MM-DD): ").strip()
     tx_type = input("타입(income/expense): ").strip()
@@ -63,6 +66,7 @@ def handle_add(service: BudgetService):
     print(f"[저장 완료] id={new_tx.id}")
 
 
+@handle_errors
 def handle_search(service: BudgetService, args):
     category = None
     if args.category is not None:
