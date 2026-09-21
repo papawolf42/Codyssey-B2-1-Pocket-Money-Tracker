@@ -7,8 +7,8 @@ class BudgetService:
     def __init__(
         self,
         tx_repo: TransactionRepository,
-        cat_repo: CategoryRepository = None,
-        budget_repo: BudgetRepository = None,
+        cat_repo: CategoryRepository,
+        budget_repo: BudgetRepository,
     ):
         self.tx_repo = tx_repo
         self.cat_repo = cat_repo
@@ -18,7 +18,7 @@ class BudgetService:
         clean = category.strip()
         if not clean:
             raise ValueError("카테고리는 공백일 수 없습니다.")
-        if self.cat_repo and not self.cat_repo.is_registered(clean):
+        if not self.cat_repo.is_registered(clean):
             cats = ", ".join(self.cat_repo.get_all())
             raise ValueError(f"등록되지 않은 카테고리입니다: '{clean}'. (등록된 카테고리: {cats})")
         return clean
@@ -70,18 +70,14 @@ class BudgetService:
         valid_month = validate_month(month)
         valid_amount = validate_amount(amount)
         budget = Budget(month=valid_month, amount=valid_amount)
-        if self.budget_repo:
-            self.budget_repo.set_budget(budget)
+        self.budget_repo.set_budget(budget)
         return budget
 
     def get_budget(self, month: str) -> Budget | None:
         valid_month = validate_month(month)
-        if self.budget_repo:
-            return self.budget_repo.get_budget(valid_month)
-        return None
+        return self.budget_repo.get_budget(valid_month)
 
     def list_budgets(self) -> list[Budget]:
-        if self.budget_repo:
-            return list(self.budget_repo.get_all())
-        return []
+        return list(self.budget_repo.get_all())
+
 

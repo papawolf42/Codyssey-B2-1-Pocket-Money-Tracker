@@ -48,7 +48,6 @@ def init_file(file_path: str, default_items: list = None) -> None:
     write_jsonl(file_path, default_items or [])
 
 
-
 def init_storage(data_dir: str = "./data"):
     os.makedirs(data_dir, exist_ok=True)
     init_file(os.path.join(data_dir, "categories.jsonl"), [{"name": cat} for cat in DEFAULT_CATEGORIES])
@@ -72,7 +71,6 @@ class TransactionRepository:
     def get_all(self) -> Generator[Transaction, None, None]:
         for data in read_jsonl(self.file_path):
             yield Transaction.from_dict(data)
-
 
     def get_next_id(self) -> str:
         max_num = 0
