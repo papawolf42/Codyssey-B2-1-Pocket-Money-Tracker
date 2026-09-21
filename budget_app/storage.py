@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Generator
-from .models import Transaction
+from .models import Transaction, Budget
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary"]
 DEFAULT_TRANSACTIONS = [
@@ -23,15 +23,30 @@ def atomic_replace(temp_path: str, target_path: str) -> None:
         raise
 
 
+def read_jsonl(file_path: str) -> Generator[dict, None, None]:
+    if not os.path.exists(file_path):
+        return
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                yield json.loads(line)
+
+
+def write_jsonl(file_path: str, items) -> None:
+    temp_file = file_path + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
+        for item in items:
+            data = item.to_dict() if hasattr(item, "to_dict") else item
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
+    atomic_replace(temp_file, file_path)
+
+
 def init_file(file_path: str, default_items: list = None) -> None:
     if os.path.exists(file_path):
         return
-    temp_file = file_path + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
-        if default_items:
-            for item in default_items:
-                f.write(json.dumps(item, ensure_ascii=False) + "\n")
-    atomic_replace(temp_file, file_path)
+    write_jsonl(file_path, default_items or [])
+
 
 
 def init_storage(data_dir: str = "./data"):
@@ -55,15 +70,8 @@ class TransactionRepository:
         self.file_path = file_path
 
     def get_all(self) -> Generator[Transaction, None, None]:
-        if not os.path.exists(self.file_path):
-            return
-
-        with open(self.file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                yield Transaction.from_dict(json.loads(line))
+        for data in read_jsonl(self.file_path):
+            yield Transaction.from_dict(data)
 
 
     def get_next_id(self) -> str:
@@ -141,15 +149,7 @@ class CategoryRepository:
         self.file_path = file_path
 
     def get_all(self) -> list[str]:
-        if not os.path.exists(self.file_path):
-            return []
-        categories = []
-        with open(self.file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    categories.append(json.loads(line)["name"])
-        return categories
+        return [item["name"] for item in read_jsonl(self.file_path)]
 
     def is_registered(self, name: str) -> bool:
         target = name.strip().lower()
@@ -157,3 +157,26 @@ class CategoryRepository:
             if cat.lower() == target:
                 return True
         return False
+
+
+class BudgetRepository:
+    def __init__(self, file_path: str = "./data/budgets.jsonl"):
+        self.file_path = file_path
+
+    def get_all(self) -> Generator[Budget, None, None]:
+        for data in read_jsonl(self.file_path):
+            yield Budget.from_dict(data)
+
+    def get_budget(self, month: str) -> Budget | None:
+        for b in self.get_all():
+            if b.month == month:
+                return b
+        return None
+
+    def set_budget(self, budget: Budget) -> None:
+        budgets = [b for b in self.get_all() if b.month != budget.month]
+        budgets.append(budget)
+        write_jsonl(self.file_path, budgets)
+
+
+
