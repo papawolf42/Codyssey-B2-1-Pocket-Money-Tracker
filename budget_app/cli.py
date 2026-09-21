@@ -40,6 +40,11 @@ def create_parser() -> argparse.ArgumentParser:
     budget_set_p.add_argument("--amount", required=True, help="예산 금액 (양수)")
     budget_sub.add_parser("list", help="설정된 예산 목록 조회")
 
+    # 5. summary
+    summary_parser = subparsers.add_parser("summary", help="월별 결산 및 예산 요약")
+    summary_parser.add_argument("--month", required=True, help="대상 월 (YYYY-MM)")
+    summary_parser.add_argument("--top", type=int, default=3, help="지출 상위 카테고리 수 (기본값: 3)")
+
     return parser
 
 
@@ -144,6 +149,27 @@ def handle_budget(service: BudgetService, args):
 
 
 @handle_errors
+def handle_summary(service: BudgetService, args):
+    s = service.get_summary(month=args.month, top=args.top)
+    if not s["has_data"] and s["budget"] is None:
+        print(f"[{s['month']}] 해당 월의 데이터가 없습니다.")
+        return
+
+    print(f"총 수입: {s['total_income']}원")
+    print(f"총 지출: {s['total_expense']}원")
+    print(f"잔액: {s['balance']}원")
+    if s["budget"] is not None:
+        print(f"예산: {s['budget']}원 (사용률 {s['usage_percentage']:.1f}%)")
+        if s["over_budget_amount"] > 0:
+            print(f"[경고] 예산을 {s['over_budget_amount']}원 초과했습니다!")
+
+    if s["top_expenses"]:
+        print(f"\n지출 TOP {len(s['top_expenses'])}")
+        for rank, (cat, amt) in enumerate(s["top_expenses"], 1):
+            print(f"{rank}) {cat} {amt}원")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -170,8 +196,9 @@ def main():
         handle_search(service, args)
     elif args.command == "budget":
         handle_budget(service, args)
+    elif args.command == "summary":
+        handle_summary(service, args)
 
 
 if __name__ == "__main__":
     main()
-

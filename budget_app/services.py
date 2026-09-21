@@ -80,4 +80,54 @@ class BudgetService:
     def list_budgets(self) -> list[Budget]:
         return list(self.budget_repo.get_all())
 
+    def _aggregate_monthly_transactions(self, month: str):
+        total_income = 0
+        total_expense = 0
+        category_expenses = {}
+        count = 0
 
+        for tx in self.tx_repo.get_all():
+            if tx.date.startswith(month):
+                count += 1
+                if tx.type == "income":
+                    total_income += tx.amount
+                elif tx.type == "expense":
+                    total_expense += tx.amount
+                    category_expenses[tx.category] = category_expenses.get(tx.category, 0) + tx.amount
+
+        return total_income, total_expense, category_expenses, count
+
+    def _get_top_categories(self, category_expenses: dict, top: int) -> list[tuple[str, int]]:
+        sorted_expenses = sorted(category_expenses.items(), key=lambda item: item[1], reverse=True)
+        return sorted_expenses[:top]
+
+    def _calculate_budget_status(self, month: str, total_expense: int):
+        budget = self.get_budget(month)
+        if budget is None:
+            return None, None, 0
+
+        usage_percentage = (total_expense / budget.amount) * 100 if budget.amount > 0 else 0.0
+        over_budget_amount = max(0, total_expense - budget.amount)
+
+        return budget.amount, usage_percentage, over_budget_amount
+
+    def get_summary(self, month: str, top: int = 3) -> dict:
+        valid_month = validate_month(month)
+        if top <= 0:
+            raise ValueError(f"--top 옵션은 1 이상이어야 합니다: {top}")
+
+        total_income, total_expense, category_expenses, count = self._aggregate_monthly_transactions(valid_month)
+        top_expenses = self._get_top_categories(category_expenses, top)
+        budget_amount, usage_percentage, over_budget_amount = self._calculate_budget_status(valid_month, total_expense)
+
+        return {
+            "month": valid_month,
+            "has_data": count > 0,
+            "total_income": total_income,
+            "total_expense": total_expense,
+            "balance": total_income - total_expense,
+            "top_expenses": top_expenses,
+            "budget": budget_amount,
+            "usage_percentage": usage_percentage,
+            "over_budget_amount": over_budget_amount,
+        }
