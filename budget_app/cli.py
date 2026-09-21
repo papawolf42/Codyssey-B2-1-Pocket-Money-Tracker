@@ -64,6 +64,7 @@ def create_parser() -> argparse.ArgumentParser:
     cat_sub = cat_parser.add_subparsers(dest="category_cmd", required=True, title="카테고리 명령어", metavar="<command>")
     cat_add = cat_sub.add_parser("add", help="새 카테고리 추가")
     cat_add.add_argument("name", help="추가할 카테고리 이름")
+    cat_sub.add_parser("list", help="등록된 카테고리 목록 조회")
 
     return parser
 
@@ -222,6 +223,14 @@ def handle_category(service: BudgetService, args):
     if args.category_cmd == "add":
         cat = service.add_category(args.name)
         print(f"[추가 완료] 카테고리 '{cat}'가 성공적으로 등록되었습니다.")
+    elif args.category_cmd == "list":
+        cats = service.list_categories()
+        if not cats:
+            print("등록된 카테고리가 없습니다.")
+            return
+        print("=== [등록된 카테고리 목록] ===")
+        for cat in cats:
+            print(f"- {cat}")
 
 
 @handle_errors

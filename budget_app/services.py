@@ -32,6 +32,9 @@ class BudgetService:
         self.cat_repo.add(clean)
         return clean
 
+    def list_categories(self) -> list[str]:
+        return self.cat_repo.get_all()
+
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:
