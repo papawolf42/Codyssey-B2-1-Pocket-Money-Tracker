@@ -75,6 +75,10 @@ def create_parser() -> argparse.ArgumentParser:
     export_parser.add_argument("--from", dest="date_from", help="시작 날짜 (YYYY-MM-DD)")
     export_parser.add_argument("--to", dest="date_to", help="종료 날짜 (YYYY-MM-DD)")
 
+    # 10. import
+    import_parser = subparsers.add_parser("import", help="CSV 파일로부터 거래 내역 가져오기")
+    import_parser.add_argument("--from", dest="from_path", required=True, help="가져올 CSV 파일 경로 (예: data/import.csv)")
+
     return parser
 
 
@@ -231,6 +235,12 @@ def handle_export(service: BudgetService, args):
 
 
 @handle_errors
+def handle_import(service: BudgetService, args):
+    imported, skipped = service.import_transactions(args.from_path)
+    print(f"[완료] imported={imported}, skipped={skipped}")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -267,6 +277,8 @@ def main():
         handle_category(service, args)
     elif args.command == "export":
         handle_export(service, args)
+    elif args.command == "import":
+        handle_import(service, args)
 
 
 if __name__ == "__main__":

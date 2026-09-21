@@ -59,6 +59,30 @@ def write_csv(file_path: str, rows) -> int:
     return count
 
 
+def read_csv(file_path: str) -> Generator[dict, None, None]:
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"파일을 찾을 수 없습니다: {file_path}")
+    with open(file_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None:
+            return
+        fieldnames = [fn.strip() if fn else "" for fn in reader.fieldnames]
+        required_cols = {"date", "type", "category", "amount"}
+        if not required_cols.issubset(set(fieldnames)):
+            missing = required_cols - set(fieldnames)
+            raise ValueError(f"CSV 헤더가 올바르지 않습니다. 필수 컬럼이 누락되었습니다: {missing}")
+        for raw_row in reader:
+            if not any(raw_row.values()):
+                continue
+            row = {}
+            for k, v in raw_row.items():
+                if k is not None:
+                    clean_k = k.strip()
+                    clean_v = v.strip() if isinstance(v, str) else v
+                    row[clean_k] = clean_v
+            yield row
+
+
 def init_file(file_path: str, default_items: list = None) -> None:
     if os.path.exists(file_path):
         return
@@ -89,7 +113,7 @@ class TransactionRepository:
         for data in read_jsonl(self.file_path):
             yield Transaction.from_dict(data)
 
-    def get_next_id(self) -> str:
+    def get_max_id_num(self) -> int:
         max_num = 0
         for tx in self.get_all():
             if tx.id.startswith("TX-"):
@@ -99,7 +123,18 @@ class TransactionRepository:
                         max_num = num
                 except ValueError:  # "TX-abc"처럼 숫자가 아니면 무시
                     pass
-        return f"TX-{max_num + 1:06d}"  # :06d는 6자리 0 채우기 (예: 4 -> 000004)
+        return max_num
+
+    def get_next_id(self) -> str:
+        return f"TX-{self.get_max_id_num() + 1:06d}"
+
+    def insert_batch(self, new_txs: list[Transaction]) -> None:
+        if not new_txs:
+            return
+        all_txs = list(self.get_all()) + new_txs
+        all_txs.sort(key=lambda t: t.id)
+        all_txs.sort(key=lambda t: t.date, reverse=True)
+        write_jsonl(self.file_path, all_txs)
 
     def insert_sorted(self, new_tx: Transaction) -> None:
         temp_file = self.file_path + ".tmp"

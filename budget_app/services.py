@@ -1,6 +1,7 @@
 from typing import Generator
+import os
 from .models import Transaction, Budget, validate_date, validate_type, validate_month, validate_amount
-from .storage import TransactionRepository, CategoryRepository, BudgetRepository, write_csv
+from .storage import TransactionRepository, CategoryRepository, BudgetRepository, write_csv, read_csv
 
 
 class BudgetService:
@@ -19,6 +20,9 @@ class BudgetService:
         if not clean or not self.cat_repo.is_registered(clean):
             cats = ", ".join(self.cat_repo.get_all())
             raise ValueError(f"등록되지 않은 카테고리입니다: '{category}'. (등록된 카테고리: {cats})")
+        for cat in self.cat_repo.get_all():
+            if cat.lower() == clean.lower():
+                return cat
         return clean
 
     def add_category(self, name: str) -> str:
@@ -263,3 +267,46 @@ class BudgetService:
                 }
 
         return write_csv(out_path, _rows())
+
+    def import_transactions(self, from_path: str) -> tuple[int, int]:
+        if not from_path or not from_path.strip():
+            raise ValueError("가져올 CSV 파일 경로(--from)를 입력해 주세요.")
+        from_path = from_path.strip()
+
+        if not os.path.exists(from_path):
+            raise ValueError(f"가져올 CSV 파일이 존재하지 않습니다: '{from_path}'")
+
+        next_id_num = self.tx_repo.get_max_id_num() + 1
+        valid_txs = []
+        skipped_count = 0
+
+        for row in read_csv(from_path):
+            try:
+                date = validate_date(row.get("date", ""))
+                tx_type = validate_type(row.get("type", ""))
+                category = self.validate_category(row.get("category", ""))
+                amount = validate_amount(row.get("amount", ""))
+                memo = row.get("memo", "").strip() if row.get("memo") else ""
+                raw_tags = row.get("tags", "")
+                tags = [t.strip() for t in raw_tags.split(",") if t.strip()] if raw_tags else []
+
+                tx_id = f"TX-{next_id_num:06d}"
+                next_id_num += 1
+
+                new_tx = Transaction(
+                    id=tx_id,
+                    type=tx_type,
+                    date=date,
+                    category=category,
+                    amount=amount,
+                    memo=memo,
+                    tags=tags,
+                )
+                valid_txs.append(new_tx)
+            except (ValueError, KeyError):
+                skipped_count += 1
+
+        if valid_txs:
+            self.tx_repo.insert_batch(valid_txs)
+
+        return len(valid_txs), skipped_count
