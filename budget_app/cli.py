@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 from .error_handlers import handle_errors
+from .models import validate_date
 from .storage import init_storage, TransactionRepository, CategoryRepository
 from .services import BudgetService
 
@@ -26,6 +27,8 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser = subparsers.add_parser("search", help="조건 검색")
     search_parser.add_argument("--category", help="카테고리")
     search_parser.add_argument("--type", choices=["income", "expense"], help="거래 타입")
+    search_parser.add_argument("--from", dest="date_from", help="시작 날짜 (YYYY-MM-DD, 해당 날짜 포함)")
+    search_parser.add_argument("--to", dest="date_to", help="종료 날짜 (YYYY-MM-DD, 해당 날짜 포함)")
 
     return parser
 
@@ -75,7 +78,20 @@ def handle_search(service: BudgetService, args):
         if not category:
             raise ValueError("카테고리는 공백일 수 없습니다.")
 
-    results = service.search_transactions(category=category, tx_type=args.type)
+    date_from = None
+    if args.date_from is not None:
+        date_from = validate_date(args.date_from)
+
+    date_to = None
+    if args.date_to is not None:
+        date_to = validate_date(args.date_to)
+
+    if date_from and date_to and date_from > date_to:
+        raise ValueError("시작 날짜는 종료 날짜보다 늦을 수 없습니다. --from과 --to를 확인해 주세요.")
+
+    results = service.search_transactions(
+        category=category, tx_type=args.type, date_from=date_from, date_to=date_to
+    )
     count = 0
     for tx in results:
         count += 1

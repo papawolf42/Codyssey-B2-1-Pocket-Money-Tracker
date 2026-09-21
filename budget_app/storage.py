@@ -115,11 +115,17 @@ class TransactionRepository:
         self,
         category: str = None,
         tx_type: str = None,
+        date_from: str = None,
+        date_to: str = None,
     ) -> Generator[Transaction, None, None]:
         for tx in self.get_all():
             if category and tx.category.lower() != category:
                 continue
             if tx_type and tx.type != tx_type:
+                continue
+            if date_from and tx.date < date_from:
+                continue
+            if date_to and tx.date > date_to:
                 continue
             yield tx
 
