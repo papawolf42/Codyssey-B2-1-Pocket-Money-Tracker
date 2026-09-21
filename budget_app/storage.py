@@ -144,7 +144,7 @@ class TransactionRepository:
         tag: str = None,
     ) -> Generator[Transaction, None, None]:
         for tx in self.get_all():
-            if category and tx.category.lower() != category:
+            if category and tx.category.lower() != category.lower():
                 continue
             if tx_type and tx.type != tx_type:
                 continue
@@ -154,7 +154,7 @@ class TransactionRepository:
                 continue
             if keyword and keyword.lower() not in tx.memo.lower():
                 continue
-            if tag and tag not in tx.tags:
+            if tag and tag.lower() not in [t.lower() for t in tx.tags]:
                 continue
             yield tx
 

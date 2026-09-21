@@ -66,10 +66,12 @@ class BudgetService:
         return new_tx
 
     def list_transactions(self, limit: int = 5) -> list[Transaction]:
+        if limit <= 0:
+            raise ValueError(f"--limit 옵션은 1 이상이어야 합니다: {limit}")
         result = []
         for tx in self.tx_repo.get_all():
             result.append(tx)
-            if len(result) == limit:
+            if len(result) >= limit:
                 break
         return result
 
