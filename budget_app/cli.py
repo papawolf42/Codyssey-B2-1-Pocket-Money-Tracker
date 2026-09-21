@@ -104,13 +104,12 @@ def handle_list(service: BudgetService, args):
 
 @handle_errors
 def handle_add(service: BudgetService):
-    date = validate_date(input("날짜(YYYY-MM-DD): ").strip())
-    tx_type = validate_type(input("타입(income/expense): ").strip())
-    category = service.validate_category(input("카테고리: ").strip())
-    amount = validate_amount(input("금액(양수): ").strip())
-    memo = input("메모(선택): ").strip()
-    raw_tags = input("태그(쉼표로 구분, 없으면 엔터): ").strip()
-    tags = parse_tags(raw_tags) or []
+    date = validate_date(input("날짜(YYYY-MM-DD): "))
+    tx_type = validate_type(input("타입(income/expense): "))
+    category = service.validate_category(input("카테고리: "))
+    amount = validate_amount(input("금액(양수): "))
+    memo = input("메모(선택): ")
+    tags = parse_tags(input("태그(쉼표로 구분, 없으면 엔터): "))
 
     new_tx = service.add_transaction(
         date=date,
@@ -125,38 +124,13 @@ def handle_add(service: BudgetService):
 
 @handle_errors
 def handle_search(service: BudgetService, args):
-    category = None
-    if args.category is not None:
-        category = args.category.strip().lower()
-        if not category:
-            raise ValueError("카테고리는 공백일 수 없습니다.")
-
-    date_from = None
-    if args.date_from is not None:
-        date_from = validate_date(args.date_from)
-
-    date_to = None
-    if args.date_to is not None:
-        date_to = validate_date(args.date_to)
-
-    if date_from and date_to and date_from > date_to:
-        raise ValueError("시작 날짜는 종료 날짜보다 늦을 수 없습니다. --from과 --to를 확인해 주세요.")
-
-    keyword = args.keyword.strip() if args.keyword is not None else None
-    if keyword == "":
-        raise ValueError("메모 키워드는 공백일 수 없습니다.")
-
-    tag = args.tag.strip() if args.tag is not None else None
-    if tag == "":
-        raise ValueError("태그는 공백일 수 없습니다.")
-
     results = service.search_transactions(
-        category=category,
+        category=args.category,
         tx_type=args.type,
-        date_from=date_from,
-        date_to=date_to,
-        keyword=keyword,
-        tag=tag,
+        date_from=args.date_from,
+        date_to=args.date_to,
+        keyword=args.keyword,
+        tag=args.tag,
     )
     count = 0
     for tx in results:

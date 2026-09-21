@@ -15,54 +15,51 @@ class BudgetService:
         self.budget_repo = budget_repo
 
     def validate_category(self, category: str) -> str:
-        clean = category.strip()
-        if not clean:
-            raise ValueError("카테고리는 공백일 수 없습니다.")
-        if not self.cat_repo.is_registered(clean):
+        clean = category.strip() if category else ""
+        if not clean or not self.cat_repo.is_registered(clean):
             cats = ", ".join(self.cat_repo.get_all())
-            raise ValueError(f"등록되지 않은 카테고리입니다: '{clean}'. (등록된 카테고리: {cats})")
+            raise ValueError(f"등록되지 않은 카테고리입니다: '{category}'. (등록된 카테고리: {cats})")
         return clean
 
     def add_category(self, name: str) -> str:
-        clean = name.strip() if name else ""
-        if not clean:
+        if not name or not name.strip():
             raise ValueError("카테고리 이름은 공백일 수 없습니다.")
-        if self.cat_repo.is_registered(clean):
-            raise ValueError(f"이미 등록된 카테고리입니다: '{clean}'")
-        self.cat_repo.add(clean)
-        return clean
+        name = name.strip()
+        if self.cat_repo.is_registered(name):
+            raise ValueError(f"이미 등록된 카테고리입니다: '{name}'")
+        self.cat_repo.add(name)
+        return name
 
     def list_categories(self) -> list[str]:
         return self.cat_repo.get_all()
 
     def remove_category(self, name: str) -> None:
-        clean = name.strip() if name else ""
-        if not clean:
+        if not name or not name.strip():
             raise ValueError("카테고리 이름은 공백일 수 없습니다.")
-        if not self.cat_repo.is_registered(clean):
-            raise ValueError(f"존재하지 않는 카테고리입니다: '{clean}'")
+        name = name.strip()
+        if not self.cat_repo.is_registered(name):
+            raise ValueError(f"존재하지 않는 카테고리입니다: '{name}'")
 
         for tx in self.tx_repo.get_all():
-            if tx.category.lower() == clean.lower():
+            if tx.category.lower() == name.lower():
                 raise ValueError(
-                    f"'{clean}' 카테고리를 사용하는 거래 내역(예: [{tx.id}] {tx.memo})이 존재하여 삭제할 수 없습니다. "
+                    f"'{name}' 카테고리를 사용하는 거래 내역(예: [{tx.id}] {tx.memo})이 존재하여 삭제할 수 없습니다. "
                     "해당 거래를 먼저 수정하거나 삭제해 주세요."
                 )
 
-        self.cat_repo.remove(clean)
+        self.cat_repo.remove(name)
 
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:
         valid_cat = self.validate_category(category)
-        tx_id = self.tx_repo.get_next_id()
         new_tx = Transaction(
-            id=tx_id,
+            id=self.tx_repo.get_next_id(),
             type=tx_type,
             date=date,
             category=valid_cat,
             amount=amount,
-            memo=memo,
+            memo=memo or "",
             tags=tags or [],
         )
         self.tx_repo.insert_sorted(new_tx)
@@ -85,6 +82,30 @@ class BudgetService:
         keyword: str = None,
         tag: str = None,
     ) -> Generator[Transaction, None, None]:
+        if category is not None:
+            category = category.strip().lower()
+            if not category:
+                raise ValueError("카테고리는 공백일 수 없습니다.")
+
+        if date_from is not None:
+            date_from = validate_date(date_from)
+
+        if date_to is not None:
+            date_to = validate_date(date_to)
+
+        if date_from and date_to and date_from > date_to:
+            raise ValueError("시작 날짜는 종료 날짜보다 늦을 수 없습니다. --from과 --to를 확인해 주세요.")
+
+        if keyword is not None:
+            keyword = keyword.strip()
+            if not keyword:
+                raise ValueError("검색 키워드는 공백일 수 없습니다.")
+
+        if tag is not None:
+            tag = tag.strip()
+            if not tag:
+                raise ValueError("태그는 공백일 수 없습니다.")
+
         return self.tx_repo.search(
             category=category,
             tx_type=tx_type,
@@ -104,9 +125,9 @@ class BudgetService:
         memo: str = None,
         tags: list[str] = None,
     ) -> Transaction:
-        clean_id = tx_id.strip() if tx_id else ""
-        if not clean_id:
+        if not tx_id or not tx_id.strip():
             raise ValueError("거래 ID는 공백일 수 없습니다.")
+        tx_id = tx_id.strip()
 
         updates = {}
         if date is not None:
@@ -125,26 +146,20 @@ class BudgetService:
         if not updates:
             raise ValueError("수정할 항목이 지정되지 않았습니다. (--amount, --category 등 수정할 옵션을 입력해 주세요)")
 
-        return self.tx_repo.update(clean_id, updates)
+        return self.tx_repo.update(tx_id, updates)
 
     def delete_transaction(self, tx_id: str) -> bool:
-        clean_id = tx_id.strip() if tx_id else ""
-        if not clean_id:
-            raise ValueError("거래 ID는 공백일 수 없습니다.")
-        if not self.tx_repo.delete(clean_id):
-            raise ValueError(f"존재하지 않는 거래 ID입니다: '{clean_id}'. 'list' 명령어로 ID를 확인해 주세요.")
+        if not tx_id or not self.tx_repo.delete(tx_id.strip()):
+            raise ValueError(f"존재하지 않는 거래 ID입니다: '{tx_id}'. 'list' 명령어로 ID를 확인해 주세요.")
         return True
 
     def set_budget(self, month: str, amount) -> Budget:
-        valid_month = validate_month(month)
-        valid_amount = validate_amount(amount)
-        budget = Budget(month=valid_month, amount=valid_amount)
+        budget = Budget(month=month, amount=amount)
         self.budget_repo.set_budget(budget)
         return budget
 
     def get_budget(self, month: str) -> Budget | None:
-        valid_month = validate_month(month)
-        return self.budget_repo.get_budget(valid_month)
+        return self.budget_repo.get_budget(validate_month(month))
 
     def list_budgets(self) -> list[Budget]:
         return list(self.budget_repo.get_all())
