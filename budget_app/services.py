@@ -36,5 +36,5 @@ class BudgetService:
                 break
         return result
 
-    def search_transactions(self, category: str = None) -> Generator[Transaction, None, None]:
-        return self.tx_repo.search(category=category)
+    def search_transactions(self, category: str = None, tx_type: str = None) -> Generator[Transaction, None, None]:
+        return self.tx_repo.search(category=category, tx_type=tx_type)

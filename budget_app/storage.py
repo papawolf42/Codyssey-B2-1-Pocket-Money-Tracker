@@ -114,9 +114,12 @@ class TransactionRepository:
     def search(
         self,
         category: str = None,
+        tx_type: str = None,
     ) -> Generator[Transaction, None, None]:
         for tx in self.get_all():
             if category and tx.category.lower() != category:
+                continue
+            if tx_type and tx.type != tx_type:
                 continue
             yield tx
 

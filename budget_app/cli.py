@@ -23,8 +23,9 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("add", help="대화형 거래 추가")
 
     # 3. search
-    search_parser = subparsers.add_parser("search", help="카테고리 검색")
+    search_parser = subparsers.add_parser("search", help="조건 검색")
     search_parser.add_argument("--category", help="카테고리")
+    search_parser.add_argument("--type", choices=["income", "expense"], help="거래 타입")
 
     return parser
 
@@ -74,7 +75,7 @@ def handle_search(service: BudgetService, args):
         if not category:
             raise ValueError("카테고리는 공백일 수 없습니다.")
 
-    results = service.search_transactions(category=category)
+    results = service.search_transactions(category=category, tx_type=args.type)
     count = 0
     for tx in results:
         count += 1
