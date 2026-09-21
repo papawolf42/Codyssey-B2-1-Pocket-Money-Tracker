@@ -1,12 +1,18 @@
 from typing import Generator
-from .models import Transaction
-from .storage import TransactionRepository, CategoryRepository
+from .models import Transaction, Budget, validate_month, validate_amount
+from .storage import TransactionRepository, CategoryRepository, BudgetRepository
 
 
 class BudgetService:
-    def __init__(self, tx_repo: TransactionRepository, cat_repo: CategoryRepository = None):
+    def __init__(
+        self,
+        tx_repo: TransactionRepository,
+        cat_repo: CategoryRepository = None,
+        budget_repo: BudgetRepository = None,
+    ):
         self.tx_repo = tx_repo
         self.cat_repo = cat_repo
+        self.budget_repo = budget_repo
 
     def validate_category(self, category: str) -> str:
         clean = category.strip()
@@ -59,3 +65,23 @@ class BudgetService:
             keyword=keyword,
             tag=tag,
         )
+
+    def set_budget(self, month: str, amount) -> Budget:
+        valid_month = validate_month(month)
+        valid_amount = validate_amount(amount)
+        budget = Budget(month=valid_month, amount=valid_amount)
+        if self.budget_repo:
+            self.budget_repo.set_budget(budget)
+        return budget
+
+    def get_budget(self, month: str) -> Budget | None:
+        valid_month = validate_month(month)
+        if self.budget_repo:
+            return self.budget_repo.get_budget(valid_month)
+        return None
+
+    def list_budgets(self) -> list[Budget]:
+        if self.budget_repo:
+            return list(self.budget_repo.get_all())
+        return []
+

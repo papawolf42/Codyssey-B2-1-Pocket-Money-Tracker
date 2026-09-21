@@ -3,7 +3,7 @@ import sys
 import argparse
 from .error_handlers import handle_errors
 from .models import validate_date, validate_type, validate_amount
-from .storage import init_storage, TransactionRepository, CategoryRepository
+from .storage import init_storage, TransactionRepository, CategoryRepository, BudgetRepository
 from .services import BudgetService
 
 
@@ -31,6 +31,14 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--to", dest="date_to", help="종료 날짜 (YYYY-MM-DD, 해당 날짜 포함)")
     search_parser.add_argument("--q", dest="keyword", help="메모 키워드")
     search_parser.add_argument("--tag", help="태그")
+
+    # 4. budget
+    budget_parser = subparsers.add_parser("budget", help="예산 관리")
+    budget_sub = budget_parser.add_subparsers(dest="budget_cmd", required=True, title="예산 명령어", metavar="<subcommand>")
+    budget_set_p = budget_sub.add_parser("set", help="월별 예산 설정")
+    budget_set_p.add_argument("--month", required=True, help="대상 월 (YYYY-MM)")
+    budget_set_p.add_argument("--amount", required=True, help="예산 금액 (양수)")
+    budget_sub.add_parser("list", help="설정된 예산 목록 조회")
 
     return parser
 
@@ -121,6 +129,21 @@ def handle_search(service: BudgetService, args):
 
 
 @handle_errors
+def handle_budget(service: BudgetService, args):
+    if args.budget_cmd == "set":
+        b = service.set_budget(month=args.month, amount=args.amount)
+        print(f"[저장 완료] {b.month} 예산 {b.amount}원")
+    elif args.budget_cmd == "list":
+        budgets = service.list_budgets()
+        if not budgets:
+            print("설정된 예산이 없습니다.")
+            return
+        print("=== [월별 예산 목록] ===")
+        for b in budgets:
+            print(f"- {b.month}: {b.amount:,}원")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -136,7 +159,8 @@ def main():
     # 서비스 연결
     tx_repo = TransactionRepository(file_path=os.path.join(data_dir, "transactions.jsonl"))
     cat_repo = CategoryRepository(file_path=os.path.join(data_dir, "categories.jsonl"))
-    service = BudgetService(tx_repo=tx_repo, cat_repo=cat_repo)
+    budget_repo = BudgetRepository(file_path=os.path.join(data_dir, "budgets.jsonl"))
+    service = BudgetService(tx_repo=tx_repo, cat_repo=cat_repo, budget_repo=budget_repo)
 
     if args.command == "list":
         handle_list(service, args)
@@ -144,6 +168,9 @@ def main():
         handle_add(service)
     elif args.command == "search":
         handle_search(service, args)
+    elif args.command == "budget":
+        handle_budget(service, args)
+
 
 
 if __name__ == "__main__":
