@@ -11,6 +11,15 @@ def validate_date(date_str: str) -> str:
         raise ValueError(f"날짜 형식이 올바르지 않습니다: '{date_str}' (예: 2026-03-20)")
 
 
+def validate_month(month_str: str) -> str:
+    month_str = month_str.strip()
+    try:
+        dt = datetime.strptime(month_str, "%Y-%m")
+        return dt.strftime("%Y-%m")
+    except ValueError:
+        raise ValueError(f"월 형식이 올바르지 않습니다: '{month_str}' (예: 2026-03)")
+
+
 def validate_amount(amount_input) -> int:
     try:
         val = int(amount_input)
@@ -68,3 +77,24 @@ class Transaction:
             memo=str(data.get("memo", "")),
             tags=tags,
         )
+
+
+@dataclass
+class Budget:
+    month: str
+    amount: int
+
+    def __post_init__(self):
+        self.month = validate_month(self.month)
+        self.amount = validate_amount(self.amount)
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            month=str(data["month"]),
+            amount=int(data["amount"]),
+        )
+
