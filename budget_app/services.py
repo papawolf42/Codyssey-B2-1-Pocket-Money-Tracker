@@ -66,6 +66,14 @@ class BudgetService:
             tag=tag,
         )
 
+    def delete_transaction(self, tx_id: str) -> bool:
+        clean_id = tx_id.strip() if tx_id else ""
+        if not clean_id:
+            raise ValueError("거래 ID는 공백일 수 없습니다.")
+        if not self.tx_repo.delete(clean_id):
+            raise ValueError(f"존재하지 않는 거래 ID입니다: '{clean_id}'. 'list' 명령어로 ID를 확인해 주세요.")
+        return True
+
     def set_budget(self, month: str, amount) -> Budget:
         valid_month = validate_month(month)
         valid_amount = validate_amount(amount)

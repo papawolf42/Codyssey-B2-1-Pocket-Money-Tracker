@@ -141,6 +141,21 @@ class TransactionRepository:
                 continue
             yield tx
 
+    def delete(self, tx_id: str) -> bool:
+        found = False
+        remaining = []
+        for tx in self.get_all():
+            if tx.id == tx_id:
+                found = True
+            else:
+                remaining.append(tx)
+
+        if not found:
+            return False
+
+        write_jsonl(self.file_path, remaining)
+        return True
+
 
 class CategoryRepository:
     def __init__(self, file_path: str = "./data/categories.jsonl"):

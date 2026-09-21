@@ -45,6 +45,10 @@ def create_parser() -> argparse.ArgumentParser:
     summary_parser.add_argument("--month", required=True, help="대상 월 (YYYY-MM)")
     summary_parser.add_argument("--top", type=int, default=3, help="지출 상위 카테고리 수 (기본값: 3)")
 
+    # 6. delete
+    delete_parser = subparsers.add_parser("delete", help="특정 거래 내역 삭제")
+    delete_parser.add_argument("--id", required=True, help="삭제할 거래 ID (예: TX-000001)")
+
     return parser
 
 
@@ -170,6 +174,12 @@ def handle_summary(service: BudgetService, args):
 
 
 @handle_errors
+def handle_delete(service: BudgetService, args):
+    service.delete_transaction(args.id)
+    print(f"[삭제 완료] 거래 내역 '{args.id}'가 성공적으로 삭제되었습니다.")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -198,6 +208,8 @@ def main():
         handle_budget(service, args)
     elif args.command == "summary":
         handle_summary(service, args)
+    elif args.command == "delete":
+        handle_delete(service, args)
 
 
 if __name__ == "__main__":
