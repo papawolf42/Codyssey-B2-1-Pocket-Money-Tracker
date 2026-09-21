@@ -35,6 +35,22 @@ class BudgetService:
     def list_categories(self) -> list[str]:
         return self.cat_repo.get_all()
 
+    def remove_category(self, name: str) -> None:
+        clean = name.strip() if name else ""
+        if not clean:
+            raise ValueError("카테고리 이름은 공백일 수 없습니다.")
+        if not self.cat_repo.is_registered(clean):
+            raise ValueError(f"존재하지 않는 카테고리입니다: '{clean}'")
+
+        for tx in self.tx_repo.get_all():
+            if tx.category.lower() == clean.lower():
+                raise ValueError(
+                    f"'{clean}' 카테고리를 사용하는 거래 내역(예: [{tx.id}] {tx.memo})이 존재하여 삭제할 수 없습니다. "
+                    "해당 거래를 먼저 수정하거나 삭제해 주세요."
+                )
+
+        self.cat_repo.remove(clean)
+
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:

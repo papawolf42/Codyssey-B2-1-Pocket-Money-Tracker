@@ -206,6 +206,15 @@ class CategoryRepository:
         categories.append(name.strip())
         write_jsonl(self.file_path, [{"name": c} for c in categories])
 
+    def remove(self, name: str) -> bool:
+        target = name.strip().lower()
+        current_cats = self.get_all()
+        remaining = [c for c in current_cats if c.lower() != target]
+        if len(remaining) == len(current_cats):
+            return False
+        write_jsonl(self.file_path, [{"name": c} for c in remaining])
+        return True
+
 
 class BudgetRepository:
     def __init__(self, file_path: str = "./data/budgets.jsonl"):

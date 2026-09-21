@@ -65,6 +65,8 @@ def create_parser() -> argparse.ArgumentParser:
     cat_add = cat_sub.add_parser("add", help="새 카테고리 추가")
     cat_add.add_argument("name", help="추가할 카테고리 이름")
     cat_sub.add_parser("list", help="등록된 카테고리 목록 조회")
+    cat_rm = cat_sub.add_parser("remove", help="카테고리 삭제")
+    cat_rm.add_argument("name", help="삭제할 카테고리 이름")
 
     return parser
 
@@ -231,6 +233,9 @@ def handle_category(service: BudgetService, args):
         print("=== [등록된 카테고리 목록] ===")
         for cat in cats:
             print(f"- {cat}")
+    elif args.category_cmd == "remove":
+        service.remove_category(args.name)
+        print(f"[삭제 완료] 카테고리 '{args.name}'가 성공적으로 삭제되었습니다.")
 
 
 @handle_errors
