@@ -1,7 +1,7 @@
 import os
 import sys
 import argparse
-from .storage import init_storage, TransactionRepository
+from .storage import init_storage, TransactionRepository, CategoryRepository
 from .services import BudgetService
 
 
@@ -17,6 +17,9 @@ def create_parser() -> argparse.ArgumentParser:
     # 1. list
     list_parser = subparsers.add_parser("list", help="거래 목록 조회")
     list_parser.add_argument("--limit", type=int, default=5, help="출력 건수 (기본값: 5)")
+
+    # 2. add
+    subparsers.add_parser("add", help="대화형 거래 추가")
 
     return parser
 
@@ -34,6 +37,28 @@ def handle_list(service: BudgetService, args):
         print(f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}")
 
 
+def handle_add(service: BudgetService):
+    date = input("날짜(YYYY-MM-DD): ").strip()
+    tx_type = input("타입(income/expense): ").strip()
+    category = input("카테고리: ").strip()
+    amount = input("금액(양수): ").strip()
+    memo = input("메모(선택): ").strip()
+    raw_tags = input("태그(쉼표로 구분, 없으면 엔터): ").strip()
+    tags = []
+    if raw_tags:
+        tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+
+    new_tx = service.add_transaction(
+        date=date,
+        tx_type=tx_type,
+        category=category,
+        amount=amount,
+        memo=memo,
+        tags=tags,
+    )
+    print(f"[저장 완료] id={new_tx.id}")
+
+
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -48,10 +73,13 @@ def main():
 
     # 서비스 연결
     tx_repo = TransactionRepository(file_path=os.path.join(data_dir, "transactions.jsonl"))
-    service = BudgetService(tx_repo=tx_repo)
+    cat_repo = CategoryRepository(file_path=os.path.join(data_dir, "categories.jsonl"))
+    service = BudgetService(tx_repo=tx_repo, cat_repo=cat_repo)
 
     if args.command == "list":
         handle_list(service, args)
+    elif args.command == "add":
+        handle_add(service)
 
 
 if __name__ == "__main__":

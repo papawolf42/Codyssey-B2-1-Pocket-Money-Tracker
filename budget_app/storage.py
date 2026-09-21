@@ -65,6 +65,19 @@ class TransactionRepository:
                     continue
                 yield Transaction.from_dict(json.loads(line))
 
+
+    def get_next_id(self) -> str:
+        max_num = 0
+        for tx in self.get_all():
+            if tx.id.startswith("TX-"):
+                try:
+                    num = int(tx.id.split("-")[1])
+                    if num > max_num:
+                        max_num = num
+                except ValueError:  # "TX-abc"처럼 숫자가 아니면 무시
+                    pass
+        return f"TX-{max_num + 1:06d}"  # :06d는 6자리 0 채우기 (예: 4 -> 000004)
+
     def insert_sorted(self, new_tx: Transaction) -> None:
         temp_file = self.file_path + ".tmp"
         new_dict = new_tx.to_dict()
@@ -97,3 +110,26 @@ class TransactionRepository:
                 inserted = True
 
         atomic_replace(temp_file, self.file_path)
+
+
+class CategoryRepository:
+    def __init__(self, file_path: str = "./data/categories.jsonl"):
+        self.file_path = file_path
+
+    def get_all(self) -> list[str]:
+        if not os.path.exists(self.file_path):
+            return []
+        categories = []
+        with open(self.file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    categories.append(json.loads(line)["name"])
+        return categories
+
+    def is_registered(self, name: str) -> bool:
+        target = name.strip().lower()
+        for cat in self.get_all():
+            if cat.lower() == target:
+                return True
+        return False
