@@ -1,5 +1,5 @@
 from typing import Generator
-from .models import Transaction, validate_amount, validate_date, validate_type
+from .models import Transaction
 from .storage import TransactionRepository, CategoryRepository
 
 
@@ -8,24 +8,26 @@ class BudgetService:
         self.tx_repo = tx_repo
         self.cat_repo = cat_repo
 
+    def validate_category(self, category: str) -> str:
+        clean = category.strip()
+        if not clean:
+            raise ValueError("카테고리는 공백일 수 없습니다.")
+        if self.cat_repo and not self.cat_repo.is_registered(clean):
+            cats = ", ".join(self.cat_repo.get_all())
+            raise ValueError(f"등록되지 않은 카테고리입니다: '{clean}'. (등록된 카테고리: {cats})")
+        return clean
+
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:
-        valid_date = validate_date(date)
-        valid_type = validate_type(tx_type)
-        valid_amount = validate_amount(amount)
-
-        if self.cat_repo and not self.cat_repo.is_registered(category):
-            cats = ", ".join(self.cat_repo.get_all())
-            raise ValueError(f"등록되지 않은 카테고리입니다: '{category}'. (등록된 카테고리: {cats})")
-
+        valid_cat = self.validate_category(category)
         tx_id = self.tx_repo.get_next_id()
         new_tx = Transaction(
             id=tx_id,
-            type=valid_type,
-            date=valid_date,
-            category=category,
-            amount=valid_amount,
+            type=tx_type,
+            date=date,
+            category=valid_cat,
+            amount=amount,
             memo=memo,
             tags=tags or [],
         )

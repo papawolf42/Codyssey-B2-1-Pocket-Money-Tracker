@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 from .error_handlers import handle_errors
-from .models import validate_date
+from .models import validate_date, validate_type, validate_amount
 from .storage import init_storage, TransactionRepository, CategoryRepository
 from .services import BudgetService
 
@@ -51,10 +51,10 @@ def handle_list(service: BudgetService, args):
 
 @handle_errors
 def handle_add(service: BudgetService):
-    date = input("날짜(YYYY-MM-DD): ").strip()
-    tx_type = input("타입(income/expense): ").strip()
-    category = input("카테고리: ").strip()
-    amount = input("금액(양수): ").strip()
+    date = validate_date(input("날짜(YYYY-MM-DD): ").strip())
+    tx_type = validate_type(input("타입(income/expense): ").strip())
+    category = service.validate_category(input("카테고리: ").strip())
+    amount = validate_amount(input("금액(양수): ").strip())
     memo = input("메모(선택): ").strip()
     raw_tags = input("태그(쉼표로 구분, 없으면 엔터): ").strip()
     tags = []
