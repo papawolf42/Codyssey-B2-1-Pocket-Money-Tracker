@@ -41,6 +41,15 @@ def init_storage(data_dir: str = "./data"):
     init_file(os.path.join(data_dir, "budgets.jsonl"))
 
 
+def is_newer(tx_a: dict, tx_b: dict) -> bool:
+    if tx_a["date"] > tx_b["date"]:
+        return True
+    elif tx_a["date"] < tx_b["date"]:
+        return False
+    else:
+        return tx_a["id"] < tx_b["id"]
+
+
 class TransactionRepository:
     def __init__(self, file_path: str = "./data/transactions.jsonl"):
         self.file_path = file_path
@@ -55,3 +64,36 @@ class TransactionRepository:
                 if not line:
                     continue
                 yield Transaction.from_dict(json.loads(line))
+
+    def insert_sorted(self, new_tx: Transaction) -> None:
+        temp_file = self.file_path + ".tmp"
+        new_dict = new_tx.to_dict()
+        inserted = False
+
+        os.makedirs(os.path.dirname(self.file_path) or ".", exist_ok=True)
+
+        if not os.path.exists(self.file_path):
+            with open(temp_file, "w", encoding="utf-8") as f:
+                f.write(json.dumps(new_dict, ensure_ascii=False) + "\n")
+            atomic_replace(temp_file, self.file_path)
+            return
+
+        with open(self.file_path, "r", encoding="utf-8") as src, \
+             open(temp_file, "w", encoding="utf-8") as dst:
+            for line in src:
+                line = line.strip()
+                if not line:
+                    continue
+                existing_dict = json.loads(line)
+
+                if not inserted and is_newer(new_dict, existing_dict):
+                    dst.write(json.dumps(new_dict, ensure_ascii=False) + "\n")
+                    inserted = True
+
+                dst.write(json.dumps(existing_dict, ensure_ascii=False) + "\n")
+
+            if not inserted:
+                dst.write(json.dumps(new_dict, ensure_ascii=False) + "\n")
+                inserted = True
+
+        atomic_replace(temp_file, self.file_path)
