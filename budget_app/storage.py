@@ -156,6 +156,36 @@ class TransactionRepository:
         write_jsonl(self.file_path, remaining)
         return True
 
+    def get_by_id(self, tx_id: str) -> Transaction | None:
+        for tx in self.get_all():
+            if tx.id == tx_id:
+                return tx
+        return None
+
+    def update(self, tx_id: str, updates: dict) -> Transaction:
+        found = False
+        all_txs = []
+        updated_tx = None
+
+        for tx in self.get_all():
+            if tx.id == tx_id:
+                found = True
+                current_dict = tx.to_dict()
+                current_dict.update(updates)
+                updated_tx = Transaction.from_dict(current_dict)
+                all_txs.append(updated_tx)
+            else:
+                all_txs.append(tx)
+
+        if not found:
+            raise ValueError(f"존재하지 않는 거래 ID입니다: '{tx_id}'. 'list' 명령어로 ID를 확인해 주세요.")
+
+        all_txs.sort(key=lambda t: t.id)
+        all_txs.sort(key=lambda t: t.date, reverse=True)
+
+        write_jsonl(self.file_path, all_txs)
+        return updated_tx
+
 
 class CategoryRepository:
     def __init__(self, file_path: str = "./data/categories.jsonl"):

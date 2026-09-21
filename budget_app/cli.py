@@ -49,6 +49,16 @@ def create_parser() -> argparse.ArgumentParser:
     delete_parser = subparsers.add_parser("delete", help="특정 거래 내역 삭제")
     delete_parser.add_argument("--id", required=True, help="삭제할 거래 ID (예: TX-000001)")
 
+    # 7. update
+    update_parser = subparsers.add_parser("update", help="특정 거래 내역 수정")
+    update_parser.add_argument("--id", required=True, help="수정할 거래 ID (예: TX-000001)")
+    update_parser.add_argument("--date", help="새 날짜 (YYYY-MM-DD)")
+    update_parser.add_argument("--type", choices=["income", "expense"], help="새 타입 (income/expense)")
+    update_parser.add_argument("--category", help="새 카테고리")
+    update_parser.add_argument("--amount", help="새 금액 (양수)")
+    update_parser.add_argument("--memo", help="새 메모")
+    update_parser.add_argument("--tags", help="새 태그 (쉼표로 구분)")
+
     return parser
 
 
@@ -180,6 +190,26 @@ def handle_delete(service: BudgetService, args):
 
 
 @handle_errors
+def handle_update(service: BudgetService, args):
+    tags = None
+    if args.tags is not None:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+
+    updated = service.update_transaction(
+        tx_id=args.id,
+        date=args.date,
+        tx_type=args.type,
+        category=args.category,
+        amount=args.amount,
+        memo=args.memo,
+        tags=tags,
+    )
+    tags_str = f" #{' #'.join(updated.tags)}" if updated.tags else ""
+    sign = "(+)" if updated.type == "income" else "(-)"
+    print(f"[수정 완료] [{updated.id}] {updated.date} | {sign} {updated.amount:,}원 | {updated.category} | {updated.memo}{tags_str}")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -210,6 +240,8 @@ def main():
         handle_summary(service, args)
     elif args.command == "delete":
         handle_delete(service, args)
+    elif args.command == "update":
+        handle_update(service, args)
 
 
 if __name__ == "__main__":

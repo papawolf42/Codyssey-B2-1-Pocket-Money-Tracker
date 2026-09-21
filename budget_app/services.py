@@ -1,5 +1,5 @@
 from typing import Generator
-from .models import Transaction, Budget, validate_month, validate_amount
+from .models import Transaction, Budget, validate_date, validate_type, validate_month, validate_amount
 from .storage import TransactionRepository, CategoryRepository, BudgetRepository
 
 
@@ -65,6 +65,39 @@ class BudgetService:
             keyword=keyword,
             tag=tag,
         )
+
+    def update_transaction(
+        self,
+        tx_id: str,
+        date: str = None,
+        tx_type: str = None,
+        category: str = None,
+        amount = None,
+        memo: str = None,
+        tags: list[str] = None,
+    ) -> Transaction:
+        clean_id = tx_id.strip() if tx_id else ""
+        if not clean_id:
+            raise ValueError("거래 ID는 공백일 수 없습니다.")
+
+        updates = {}
+        if date is not None:
+            updates["date"] = validate_date(date)
+        if tx_type is not None:
+            updates["type"] = validate_type(tx_type)
+        if category is not None:
+            updates["category"] = self.validate_category(category)
+        if amount is not None:
+            updates["amount"] = validate_amount(amount)
+        if memo is not None:
+            updates["memo"] = memo.strip()
+        if tags is not None:
+            updates["tags"] = tags
+
+        if not updates:
+            raise ValueError("수정할 항목이 지정되지 않았습니다. (--amount, --category 등 수정할 옵션을 입력해 주세요)")
+
+        return self.tx_repo.update(clean_id, updates)
 
     def delete_transaction(self, tx_id: str) -> bool:
         clean_id = tx_id.strip() if tx_id else ""
