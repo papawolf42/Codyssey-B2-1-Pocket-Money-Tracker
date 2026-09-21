@@ -1,7 +1,10 @@
 import os
 import json
+import csv
 from typing import Generator
 from .models import Transaction, Budget
+
+CSV_HEADERS = ["date", "type", "category", "amount", "memo", "tags"]
 
 DEFAULT_CATEGORIES = ["food", "transport", "rent", "salary"]
 DEFAULT_TRANSACTIONS = [
@@ -40,6 +43,20 @@ def write_jsonl(file_path: str, items) -> None:
             data = item.to_dict() if hasattr(item, "to_dict") else item
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
     atomic_replace(temp_file, file_path)
+
+
+def write_csv(file_path: str, rows) -> int:
+    temp_file = file_path + ".tmp"
+    os.makedirs(os.path.dirname(os.path.abspath(file_path)) or ".", exist_ok=True)
+    count = 0
+    with open(temp_file, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+            count += 1
+    atomic_replace(temp_file, file_path)
+    return count
 
 
 def init_file(file_path: str, default_items: list = None) -> None:

@@ -68,6 +68,13 @@ def create_parser() -> argparse.ArgumentParser:
     cat_rm = cat_sub.add_parser("remove", help="카테고리 삭제")
     cat_rm.add_argument("name", help="삭제할 카테고리 이름")
 
+    # 9. export
+    export_parser = subparsers.add_parser("export", help="거래 내역을 CSV 파일로 내보내기")
+    export_parser.add_argument("--out", required=True, help="저장할 CSV 파일 경로 (예: data/export.csv)")
+    export_parser.add_argument("--month", help="내보낼 대상 월 (YYYY-MM)")
+    export_parser.add_argument("--from", dest="date_from", help="시작 날짜 (YYYY-MM-DD)")
+    export_parser.add_argument("--to", dest="date_to", help="종료 날짜 (YYYY-MM-DD)")
+
     return parser
 
 
@@ -239,6 +246,17 @@ def handle_category(service: BudgetService, args):
 
 
 @handle_errors
+def handle_export(service: BudgetService, args):
+    count = service.export_transactions(
+        out_path=args.out,
+        month=args.month,
+        date_from=args.date_from,
+        date_to=args.date_to,
+    )
+    print(f"[내보내기 완료] 총 {count}건의 거래를 '{args.out}' 파일로 내보냈습니다.")
+
+
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -273,6 +291,8 @@ def main():
         handle_update(service, args)
     elif args.command == "category":
         handle_category(service, args)
+    elif args.command == "export":
+        handle_export(service, args)
 
 
 if __name__ == "__main__":

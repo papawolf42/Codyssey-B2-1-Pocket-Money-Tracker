@@ -1,6 +1,6 @@
 from typing import Generator
 from .models import Transaction, Budget, validate_date, validate_type, validate_month, validate_amount
-from .storage import TransactionRepository, CategoryRepository, BudgetRepository
+from .storage import TransactionRepository, CategoryRepository, BudgetRepository, write_csv
 
 
 class BudgetService:
@@ -200,3 +200,49 @@ class BudgetService:
             "usage_percentage": usage_percentage,
             "over_budget_amount": over_budget_amount,
         }
+
+    def export_transactions(
+        self,
+        out_path: str,
+        month: str = None,
+        date_from: str = None,
+        date_to: str = None,
+    ) -> int:
+        if not out_path or not out_path.strip():
+            raise ValueError("출력 파일 경로(--out)를 입력해 주세요.")
+        out_path = out_path.strip()
+
+        month = month.strip() if month else ""
+        date_from = date_from.strip() if date_from else ""
+        date_to = date_to.strip() if date_to else ""
+
+        if not month and not (date_from or date_to):
+            raise ValueError("내보내기 조건을 최소 하나 이상 지정해야 합니다. (--month 또는 --from/--to)")
+
+        if month:
+            month = validate_month(month)
+        if date_from:
+            date_from = validate_date(date_from)
+        if date_to:
+            date_to = validate_date(date_to)
+        if date_from and date_to and date_from > date_to:
+            raise ValueError(f"시작 날짜({date_from})는 종료 날짜({date_to})보다 앞서야 합니다.")
+
+        def _rows():
+            for tx in self.tx_repo.get_all():
+                if month and not tx.date.startswith(f"{month}-"):
+                    continue
+                if date_from and tx.date < date_from:
+                    continue
+                if date_to and tx.date > date_to:
+                    continue
+                yield {
+                    "date": tx.date,
+                    "type": tx.type,
+                    "category": tx.category,
+                    "amount": tx.amount,
+                    "memo": tx.memo,
+                    "tags": ",".join(tx.tags) if tx.tags else "",
+                }
+
+        return write_csv(out_path, _rows())
