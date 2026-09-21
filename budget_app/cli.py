@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 from .error_handlers import handle_errors
-from .models import validate_date, validate_type, validate_amount
+from .models import Transaction, validate_date, validate_type, validate_amount
 from .storage import init_storage, TransactionRepository, CategoryRepository, BudgetRepository
 from .services import BudgetService
 
@@ -62,6 +62,18 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def format_transaction(tx: Transaction) -> str:
+    tags = f" #{' #'.join(tx.tags)}" if tx.tags else ""
+    sign = "(+)" if tx.type == "income" else "(-)"
+    return f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}"
+
+
+def parse_tags(raw: str | None) -> list[str] | None:
+    if raw is None:
+        return None
+    return [t.strip() for t in raw.split(",") if t.strip()]
+
+
 @handle_errors
 def handle_list(service: BudgetService, args):
     txs = service.list_transactions(limit=args.limit)
@@ -71,9 +83,7 @@ def handle_list(service: BudgetService, args):
 
     print(f"=== [최신 거래 목록 (최대 {args.limit}건)] ===")
     for tx in txs:
-        tags = f" #{' #'.join(tx.tags)}" if tx.tags else ""
-        sign = "(+)" if tx.type == "income" else "(-)"
-        print(f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}")
+        print(format_transaction(tx))
 
 
 @handle_errors
@@ -84,9 +94,7 @@ def handle_add(service: BudgetService):
     amount = validate_amount(input("금액(양수): ").strip())
     memo = input("메모(선택): ").strip()
     raw_tags = input("태그(쉼표로 구분, 없으면 엔터): ").strip()
-    tags = []
-    if raw_tags:
-        tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+    tags = parse_tags(raw_tags) or []
 
     new_tx = service.add_transaction(
         date=date,
@@ -137,9 +145,7 @@ def handle_search(service: BudgetService, args):
     count = 0
     for tx in results:
         count += 1
-        tags = f" #{' #'.join(tx.tags)}" if tx.tags else ""
-        sign = "(+)" if tx.type == "income" else "(-)"
-        print(f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}")
+        print(format_transaction(tx))
 
     if count == 0:
         print("조건에 일치하는 거래 내역이 없습니다.")
@@ -191,9 +197,7 @@ def handle_delete(service: BudgetService, args):
 
 @handle_errors
 def handle_update(service: BudgetService, args):
-    tags = None
-    if args.tags is not None:
-        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+    tags = parse_tags(args.tags)
 
     updated = service.update_transaction(
         tx_id=args.id,
@@ -204,9 +208,7 @@ def handle_update(service: BudgetService, args):
         memo=args.memo,
         tags=tags,
     )
-    tags_str = f" #{' #'.join(updated.tags)}" if updated.tags else ""
-    sign = "(+)" if updated.type == "income" else "(-)"
-    print(f"[수정 완료] [{updated.id}] {updated.date} | {sign} {updated.amount:,}원 | {updated.category} | {updated.memo}{tags_str}")
+    print(f"[수정 완료] {format_transaction(updated)}")
 
 
 @handle_errors
