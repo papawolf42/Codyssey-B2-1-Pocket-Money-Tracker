@@ -1,5 +1,5 @@
 from typing import Generator
-from .models import Transaction
+from .models import Transaction, validate_amount, validate_date, validate_type
 from .storage import TransactionRepository, CategoryRepository
 
 
@@ -11,6 +11,10 @@ class BudgetService:
     def add_transaction(
         self, date: str, tx_type: str, category: str, amount, memo: str = "", tags: list[str] = None
     ) -> Transaction:
+        valid_date = validate_date(date)
+        valid_type = validate_type(tx_type)
+        valid_amount = validate_amount(amount)
+
         if self.cat_repo and not self.cat_repo.is_registered(category):
             cats = ", ".join(self.cat_repo.get_all())
             raise ValueError(f"등록되지 않은 카테고리입니다: '{category}'. (등록된 카테고리: {cats})")
@@ -18,10 +22,10 @@ class BudgetService:
         tx_id = self.tx_repo.get_next_id()
         new_tx = Transaction(
             id=tx_id,
-            type=tx_type,
-            date=date,
+            type=valid_type,
+            date=valid_date,
             category=category,
-            amount=amount,
+            amount=valid_amount,
             memo=memo,
             tags=tags or [],
         )
@@ -37,6 +41,19 @@ class BudgetService:
         return result
 
     def search_transactions(
-        self, category: str = None, tx_type: str = None, date_from: str = None, date_to: str = None
+        self,
+        category: str = None,
+        tx_type: str = None,
+        date_from: str = None,
+        date_to: str = None,
+        keyword: str = None,
+        tag: str = None,
     ) -> Generator[Transaction, None, None]:
-        return self.tx_repo.search(category=category, tx_type=tx_type, date_from=date_from, date_to=date_to)
+        return self.tx_repo.search(
+            category=category,
+            tx_type=tx_type,
+            date_from=date_from,
+            date_to=date_to,
+            keyword=keyword,
+            tag=tag,
+        )

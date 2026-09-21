@@ -29,6 +29,8 @@ def create_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--type", choices=["income", "expense"], help="거래 타입")
     search_parser.add_argument("--from", dest="date_from", help="시작 날짜 (YYYY-MM-DD, 해당 날짜 포함)")
     search_parser.add_argument("--to", dest="date_to", help="종료 날짜 (YYYY-MM-DD, 해당 날짜 포함)")
+    search_parser.add_argument("--q", dest="keyword", help="메모 키워드")
+    search_parser.add_argument("--tag", help="태그")
 
     return parser
 
@@ -89,8 +91,21 @@ def handle_search(service: BudgetService, args):
     if date_from and date_to and date_from > date_to:
         raise ValueError("시작 날짜는 종료 날짜보다 늦을 수 없습니다. --from과 --to를 확인해 주세요.")
 
+    keyword = args.keyword.strip() if args.keyword is not None else None
+    if keyword == "":
+        raise ValueError("메모 키워드는 공백일 수 없습니다.")
+
+    tag = args.tag.strip() if args.tag is not None else None
+    if tag == "":
+        raise ValueError("태그는 공백일 수 없습니다.")
+
     results = service.search_transactions(
-        category=category, tx_type=args.type, date_from=date_from, date_to=date_to
+        category=category,
+        tx_type=args.type,
+        date_from=date_from,
+        date_to=date_to,
+        keyword=keyword,
+        tag=tag,
     )
     count = 0
     for tx in results:
@@ -105,6 +120,7 @@ def handle_search(service: BudgetService, args):
         print(f"총 {count}건의 거래가 검색되었습니다.")
 
 
+@handle_errors
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
