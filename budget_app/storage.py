@@ -11,28 +11,34 @@ DEFAULT_TRANSACTIONS = [
 ]
 
 
+def atomic_replace(temp_path: str, target_path: str) -> None:
+    try:
+        os.replace(temp_path, target_path)
+    except Exception:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        raise
+
+
+def init_file(file_path: str, default_items: list = None) -> None:
+    if os.path.exists(file_path):
+        return
+    temp_file = file_path + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
+        if default_items:
+            for item in default_items:
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    atomic_replace(temp_file, file_path)
+
+
 def init_storage(data_dir: str = "./data"):
     os.makedirs(data_dir, exist_ok=True)
-
-    # 1. categories.jsonl (기본 카테고리 4개 등록)
-    cat_path = os.path.join(data_dir, "categories.jsonl")
-    if not os.path.exists(cat_path):
-        with open(cat_path, "w", encoding="utf-8") as f:
-            for cat in DEFAULT_CATEGORIES:
-                f.write(json.dumps({"name": cat}, ensure_ascii=False) + "\n")
-
-    # 2. transactions.jsonl 초기화 (기본 목업 3건)
-    tx_path = os.path.join(data_dir, "transactions.jsonl")
-    if not os.path.exists(tx_path):
-        with open(tx_path, "w", encoding="utf-8") as f:
-            for tx in DEFAULT_TRANSACTIONS:
-                f.write(json.dumps(tx, ensure_ascii=False) + "\n")
-
-    # 3. budgets.jsonl (빈 파일 생성)
-    budgets_path = os.path.join(data_dir, "budgets.jsonl")
-    if not os.path.exists(budgets_path):
-        with open(budgets_path, "w", encoding="utf-8") as f:
-            pass
+    init_file(os.path.join(data_dir, "categories.jsonl"), [{"name": cat} for cat in DEFAULT_CATEGORIES])
+    init_file(os.path.join(data_dir, "transactions.jsonl"), DEFAULT_TRANSACTIONS)
+    init_file(os.path.join(data_dir, "budgets.jsonl"))
 
 
 class TransactionRepository:
