@@ -111,6 +111,15 @@ class TransactionRepository:
 
         atomic_replace(temp_file, self.file_path)
 
+    def search(
+        self,
+        category: str = None,
+    ) -> Generator[Transaction, None, None]:
+        for tx in self.get_all():
+            if category and tx.category.lower() != category:
+                continue
+            yield tx
+
 
 class CategoryRepository:
     def __init__(self, file_path: str = "./data/categories.jsonl"):

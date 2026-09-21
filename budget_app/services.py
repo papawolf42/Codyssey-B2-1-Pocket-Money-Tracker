@@ -1,3 +1,4 @@
+from typing import Generator
 from .models import Transaction
 from .storage import TransactionRepository, CategoryRepository
 
@@ -34,3 +35,6 @@ class BudgetService:
             if len(result) == limit:
                 break
         return result
+
+    def search_transactions(self, category: str = None) -> Generator[Transaction, None, None]:
+        return self.tx_repo.search(category=category)

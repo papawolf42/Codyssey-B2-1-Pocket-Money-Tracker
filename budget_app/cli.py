@@ -21,6 +21,10 @@ def create_parser() -> argparse.ArgumentParser:
     # 2. add
     subparsers.add_parser("add", help="대화형 거래 추가")
 
+    # 3. search
+    search_parser = subparsers.add_parser("search", help="카테고리 검색")
+    search_parser.add_argument("--category", help="카테고리")
+
     return parser
 
 
@@ -59,6 +63,27 @@ def handle_add(service: BudgetService):
     print(f"[저장 완료] id={new_tx.id}")
 
 
+def handle_search(service: BudgetService, args):
+    category = None
+    if args.category is not None:
+        category = args.category.strip().lower()
+        if not category:
+            raise ValueError("카테고리는 공백일 수 없습니다.")
+
+    results = service.search_transactions(category=category)
+    count = 0
+    for tx in results:
+        count += 1
+        tags = f" #{' #'.join(tx.tags)}" if tx.tags else ""
+        sign = "(+)" if tx.type == "income" else "(-)"
+        print(f"[{tx.id}] {tx.date} | {sign} {tx.amount:>10,}원 | {tx.category:<10} | {tx.memo}{tags}")
+
+    if count == 0:
+        print("조건에 일치하는 거래 내역이 없습니다.")
+    else:
+        print(f"총 {count}건의 거래가 검색되었습니다.")
+
+
 def main():
     parser = create_parser()
     if len(sys.argv) == 1:
@@ -80,6 +105,8 @@ def main():
         handle_list(service, args)
     elif args.command == "add":
         handle_add(service)
+    elif args.command == "search":
+        handle_search(service, args)
 
 
 if __name__ == "__main__":
